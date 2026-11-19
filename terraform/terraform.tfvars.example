@@ -1,0 +1,4 @@
+# Copia este archivo a terraform.tfvars y ajusta los valores.
+repositorio    = "mi-usuario/mi-repositorio"
+rama           = "main"
+bucket_lectura = "mi-bucket-de-ejemplo"
