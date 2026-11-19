@@ -1,20 +1,40 @@
-# .github/workflows/AWSTest.yml
-name: AWSTest
-on: 
-  workflow_dispatch: # Permite ejecución manual desde UI:cite[4]:cite[9]
+name: Prueba de acceso a AWS con OIDC
+
+on:
+  workflow_dispatch:
+    inputs:
+      bucket:
+        description: "Bucket de S3 sobre el que el rol tiene permiso de lectura"
+        required: true
+        type: string
+
+permissions:
+  contents: read
 
 jobs:
-  test-aws:
+  probar-acceso:
     runs-on: ubuntu-latest
     permissions:
-      id-token: write # Obligatorio para OIDC:cite[2]:cite[6]
+      id-token: write # necesario para que GitHub emita el token OIDC
       contents: read
     steps:
-      - uses: actions/checkout@v4
-      - name: Configure AWS Credentials
+      - name: Obtiene las credenciales temporales asumiendo el rol
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }} # Usa variables de repositorio
+          # ARN del rol: es la salida arn_rol de Terraform, guardada como variable del repositorio
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
           aws-region: us-east-1
-      - name: Test AWS commands
-        run: aws s3 ls
+
+      - name: Confirma la identidad asumida
+        run: aws sts get-caller-identity
+
+      - name: Lista el bucket permitido (debe funcionar)
+        run: aws s3 ls "s3://${{ inputs.bucket }}/"
+
+      - name: Intenta listar todos los buckets (debe fallar por mínimo privilegio)
+        run: |
+          if aws s3 ls; then
+            echo "El rol tiene más permisos de los esperados"
+            exit 1
+          fi
+          echo "Acceso denegado como se esperaba"
